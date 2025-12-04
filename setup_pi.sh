@@ -163,15 +163,28 @@ if [ -d ".venv" ]; then
 fi
 
 if [ ! -d ".venv" ]; then
+    # Ensure PYTHON_CMD is set
     if [ -z "$PYTHON_CMD" ]; then
         PYTHON_CMD=python3
     fi
+    
+    # Verify the Python command exists
+    if ! command -v "$PYTHON_CMD" &> /dev/null; then
+        echo "❌ Error: $PYTHON_CMD not found"
+        echo "   Falling back to python3"
+        PYTHON_CMD=python3
+        if ! command -v "$PYTHON_CMD" &> /dev/null; then
+            echo "❌ Error: python3 not found either"
+            exit 1
+        fi
+    fi
+    
     echo "   Creating venv with: $PYTHON_CMD"
     $PYTHON_CMD -m venv --system-site-packages .venv
     if [ $? -eq 0 ]; then
         echo "✅ Created virtual environment with system site-packages using $PYTHON_CMD"
     else
-        echo "❌ Failed to create virtual environment"
+        echo "❌ Failed to create virtual environment with $PYTHON_CMD"
         exit 1
     fi
 else
