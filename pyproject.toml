@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "mediapipe>=0.10.21; platform_machine != 'aarch64'",
-    "mediapipe>=0.10.0; platform_machine == 'aarch64'",
+    "mediapipe; platform_machine == 'aarch64'",
     "numpy>=1.26.4,<2",
     "opencv-python>=4.8.0,<4.11.0; platform_machine != 'aarch64'",
     "opencv-python>=4.8.0; platform_machine == 'aarch64'",
@@ -21,4 +21,9 @@ index-strategy = "unsafe-best-match"
 [[tool.uv.index]]
 name = "piwheels"
 url = "https://www.piwheels.org/simple"
+explicit = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
 explicit = false

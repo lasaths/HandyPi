@@ -107,16 +107,9 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    uv sync
    ```
 
-   This will:
-   - Create a virtual environment
-   - Install all Python dependencies including MediaPipe
-   - On Raspberry Pi, `uv` will automatically use [piwheels.org](https://www.piwheels.org) (configured in `pyproject.toml`) to find ARM-compatible builds
-   - May take several minutes on first run
+   This will create a virtual environment and install all Python dependencies. May take several minutes on first run.
 
-   **Note:** The project is configured to:
-   - Use [piwheels.org](https://www.piwheels.org) as an additional package index for ARM-compatible wheels
-   - Use `unsafe-best-match` index strategy to consider versions from all indexes (piwheels may have older MediaPipe versions than PyPI)
-   - This allows `uv` to find ARM-compatible wheels for Raspberry Pi, since PyPI doesn't provide ARM64 wheels for MediaPipe
+   **Note:** If `uv sync` fails with a MediaPipe installation error on Raspberry Pi, see the troubleshooting section below.
 
 ### Step 5: Configure Environment Variables
 
@@ -251,13 +244,11 @@ HandyPi/
 ## Dependencies
 
 - `mediapipe>=0.10.21` (>=0.10.0 on ARM64/Raspberry Pi) - Hand tracking
-- `opencv-python>=4.8.0,<4.12.0` - Camera capture and visualization (constrained to work with MediaPipe's numpy<2 requirement)
-- `numpy>=1.26.4,<2` - Numerical operations (constrained by MediaPipe requirement)
+- `opencv-python>=4.8.0,<4.12.0` - Camera capture and visualization
+- `numpy>=1.26.4,<2` - Numerical operations
 - `pika>=1.3.2` - RabbitMQ client
 - `python-dotenv>=1.0.0` - Environment variable management
 - `rich>=14.2.0` - Enhanced console output
-
-**Note:** MediaPipe 0.10.21 requires `numpy<2`, while OpenCV 4.12+ requires `numpy>=2`. The project uses OpenCV <4.12.0 to maintain compatibility with MediaPipe.
 
 ## Configuration
 
@@ -308,57 +299,37 @@ Adjust this value to change the sensitivity of pinch detection.
 
 ### MediaPipe Installation Issues on Raspberry Pi
 
-**The Problem:** `uv` by default only uses PyPI, which doesn't provide ARM64 wheels for MediaPipe. Regular `pip` works on Raspberry Pi because it automatically uses [piwheels.org](https://www.piwheels.org), which provides ARM-compatible builds.
+If `uv sync` fails with a MediaPipe installation error, install it manually:
 
-**The Solution:** This project is configured to use piwheels via the `[[tool.uv.index]]` section in `pyproject.toml`. However, **piwheels only has MediaPipe builds for Python 3.9 and 3.11**, not 3.12.
-
-**If you're using Python 3.12 on Raspberry Pi:**
-
-**Option 1 (Recommended): Use Python 3.11 instead**
 ```bash
-# Install Python 3.11 if not already installed
-sudo apt install python3.11 python3.11-venv
-
-# Create a new venv with Python 3.11
-rm -rf .venv
-uv venv --python 3.11
-uv sync
-```
-
-**Option 2: Force index strategy and try anyway**
-```bash
-UV_INDEX_STRATEGY=unsafe-best-match uv sync
-```
-This may still fail if piwheels doesn't have Python 3.12 builds.
-
-**Option 3: Build MediaPipe from source (works with any Python version)**
-```bash
-# Install other dependencies first
+# Install all other dependencies first
 uv sync --no-deps
 source .venv/bin/activate
-uv pip install "numpy>=1.26.4" "opencv-python>=4.11.0.86" "pika>=1.3.2" "python-dotenv>=1.0.0" "rich>=14.2.0"
 
-# Build MediaPipe from source
+# Install remaining dependencies manually
+uv pip install "numpy>=1.26.4,<2" "opencv-python>=4.8.0" "pika>=1.3.2" "python-dotenv>=1.0.0" "rich>=14.2.0"
+
+# Install MediaPipe using regular pip (automatically uses piwheels)
+python3 -m pip install --upgrade pip
+python3 -m pip install mediapipe
+```
+
+**Alternative: Build from source**
+
+```bash
 sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
 git clone https://github.com/google/mediapipe.git
 cd mediapipe
-uv pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 python setup.py install --link-opencv
 cd ..
 rm -rf mediapipe
 ```
 
-**If you're using Python 3.11:**
-Simply run `uv sync` - it should work automatically with piwheels.
-
 **Verify installation:**
 ```bash
 python -c "import mediapipe; print('MediaPipe installed successfully')"
 ```
-
-**Reference:** 
-- [piwheels.org MediaPipe page](https://www.piwheels.org/project/mediapipe/) - Shows available ARM builds (3.9 and 3.11 only)
-- [uv Package Indexes Documentation](https://docs.astral.sh/uv/concepts/indexes/) - How uv handles multiple indexes
 
 ## Raspberry Pi Quick Reference
 
