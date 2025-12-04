@@ -92,13 +92,25 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    source ~/.bashrc
    ```
 
-3. **Sync project dependencies:**
+3. **Install Picamera2 (for Raspberry Pi Camera Modules):**
+   ```bash
+   sudo apt install -y python3-picamera2 python3-opencv
+   ```
+   **Important:** Picamera2 should be installed via `apt`, not `pip`, to avoid ABI compatibility issues. This enables native support for Camera Module 3 / 3 Wide.
+
+4. **Grant camera permissions:**
+   ```bash
+   sudo usermod -a -G video $USER
+   ```
+   You may need to log out and back in for this to take effect.
+
+5. **Sync project dependencies:**
    ```bash
    uv sync
    ```
    Creates virtual environment and installs dependencies. On Raspberry Pi, uses MediaPipe 0.10.18 (last version with ARM64 wheels).
 
-### Step 4: Configure Environment Variables
+### Step 5: Configure Environment Variables
 
 Create `.env` file with RabbitMQ configuration:
 
@@ -113,8 +125,14 @@ RABBITMQ_EXCHANGE_TYPE=topic
 RABBITMQ_ROUTING_KEY_POSITION=thumb.position
 ```
 
-### Step 5: Run the Application
+### Step 6: Run the Application
 
+**For Raspberry Pi Camera Module 3 / 3 Wide:**
+```bash
+uv run main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
+```
+
+**For USB webcam or V4L2 camera:**
 ```bash
 uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ```
@@ -136,12 +154,20 @@ Create `.env` file with your RabbitMQ credentials (see Step 4 above for format).
 ### Main Application
 
 Run the hand tracking application:
+
+**For Raspberry Pi Camera Module 3 / 3 Wide:**
+```bash
+uv run main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
+```
+
+**For USB webcam or V4L2 camera:**
 ```bash
 uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ```
 
 **Command-line arguments:**
-- `--camera`: Camera index (default: 0)
+- `--picamera`: Use Picamera2 (for Raspberry Pi camera modules, e.g. Camera Module 3 / 3 Wide)
+- `--camera`: Camera index for OpenCV VideoCapture (default: 0, ignored when using `--picamera`)
 - `--width`: Capture width in pixels (default: 640)
 - `--height`: Capture height in pixels (default: 480)
 - `--max-hands`: Maximum number of hands to track (default: 1)
@@ -189,6 +215,7 @@ This will listen for both pinch trigger messages and thumb position messages, di
 - `pika>=1.3.2` - RabbitMQ client
 - `python-dotenv>=1.0.0` - Environment variable management
 - `rich>=14.2.0` - Enhanced console output
+- `python3-picamera2` (Raspberry Pi only, installed via `apt`) - Native support for Pi Camera Modules
 
 ## Configuration
 
@@ -203,8 +230,10 @@ PINCH_DISTANCE_THRESHOLD = 40  # pixels
 
 ### Camera Not Opening
 - Ensure your camera is connected and not being used by another application
-- Try different camera indices: `--camera 1`, `--camera 2`, etc.
-- On Linux, you may need to grant camera permissions
+- For Raspberry Pi Camera Modules: Use `--picamera` flag and ensure Picamera2 is installed (`sudo apt install -y python3-picamera2`)
+- For USB webcams: Try different camera indices: `--camera 1`, `--camera 2`, etc.
+- On Linux, ensure your user is in the `video` group: `sudo usermod -a -G video $USER` (log out and back in)
+- Enable camera in `raspi-config` if using Pi Camera Module: `sudo raspi-config` → Interface Options → Camera → Enable
 
 ### RabbitMQ Connection Failed
 - Verify RabbitMQ server is running: `rabbitmqctl status`

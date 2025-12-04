@@ -1,6 +1,7 @@
 """Main application for hand tracking and RabbitMQ messaging."""
 import argparse
 import time
+from typing import Optional
 
 import cv2
 from rich.console import Console
@@ -22,17 +23,42 @@ def run_live(
     width: int = 640,
     height: int = 480,
     max_num_hands: int = 1,
+    use_picamera: bool = False,
 ) -> None:
     """Run live hand tracking loop with RabbitMQ messaging."""
-    cap = cv2.VideoCapture(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
-    if not cap.isOpened():
-        raise RuntimeError(f"Could not open camera index {camera_index}")
-
     console = Console()
     tracker = HandTracker(max_num_hands=max_num_hands)
+
+    cap: Optional[cv2.VideoCapture] = None
+    picam2 = None
+
+    if use_picamera:
+        # Use libcamera from Python via Picamera2 (officially recommended for camera modules)
+        # https://www.raspberrypi.com/documentation/computers/camera_software.html
+        try:
+            from picamera2 import Picamera2
+        except ImportError:
+            raise RuntimeError(
+                "Picamera2 not found. Install with: sudo apt install -y python3-picamera2"
+            )
+
+        picam2 = Picamera2()
+        # Follow the MediaPipe + Picamera2 example: XRGB8888 + BGRA->BGR conversion
+        config = picam2.create_preview_configuration(
+            main={"size": (width, height), "format": "XRGB8888"}
+        )
+        picam2.configure(config)
+        picam2.start()
+        console.print("[green]✓[/green] Using Picamera2 (Pi Camera Module 3 / 3 Wide)")
+    else:
+        # Classic OpenCV path (USB webcam etc.)
+        cap = cv2.VideoCapture(camera_index)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+        if not cap.isOpened():
+            raise RuntimeError(f"Could not open camera index {camera_index}")
+        console.print(f"[green]✓[/green] Using OpenCV VideoCapture({camera_index})")
     
     try:
         rabbitmq_connection, rabbitmq_channel = setup_rabbitmq_connection()
@@ -50,10 +76,15 @@ def run_live(
 
     try:
         while True:
-            success, frame = cap.read()
-            if not success:
-                console.print("[red]Failed to read frame from camera.[/red]")
-                break
+            if use_picamera:
+                # Picamera2 returns BGRA with this configuration
+                frame_bgra = picam2.capture_array()
+                frame = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2BGR)
+            else:
+                success, frame = cap.read()
+                if not success:
+                    console.print("[red]Failed to read frame from camera.[/red]")
+                    break
 
             tracked_hands = tracker.process(frame)
             tracker.draw_on_frame(frame, tracked_hands)
@@ -123,8 +154,11 @@ def run_live(
                 break
     finally:
         tracker.close()
-        cap.release()
+        if cap is not None:
+            cap.release()
         cv2.destroyAllWindows()
+        if picam2 is not None:
+            picam2.stop()
         if rabbitmq_connection and not rabbitmq_connection.is_closed:
             rabbitmq_connection.close()
         console.print("\n[green]Done.[/green]")
@@ -139,7 +173,7 @@ def parse_args() -> argparse.Namespace:
         "--camera",
         type=int,
         default=0,
-        help="Camera index (default: 0)",
+        help="Camera index (for OpenCV VideoCapture, default: 0)",
     )
     parser.add_argument(
         "--width",
@@ -159,6 +193,11 @@ def parse_args() -> argparse.Namespace:
         default=1,
         help="Maximum number of hands to track (default: 1)",
     )
+    parser.add_argument(
+        "--picamera",
+        action="store_true",
+        help="Use Picamera2 (for Raspberry Pi camera modules, e.g. Camera Module 3 / 3 Wide)",
+    )
     return parser.parse_args()
 
 
@@ -170,6 +209,7 @@ def main() -> None:
         width=args.width,
         height=args.height,
         max_num_hands=args.max_hands,
+        use_picamera=args.picamera,
     )
 
 
