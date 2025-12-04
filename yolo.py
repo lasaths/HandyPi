@@ -196,11 +196,15 @@ def run_live(
                 frame = picam2.capture_array()
                 # Convert BGR → RGB for YOLO, which expects RGB input
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # Rotate camera image 180° to match physical orientation
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
             else:
                 success, frame = cap.read()
                 if not success:
                     console.print("[red]Failed to read frame from camera.[/red]")
                     break
+                # Rotate camera image 180° to match physical orientation
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
 
             # ---------------------------------------------------------------
             # YOLO pose inference
