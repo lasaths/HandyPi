@@ -124,7 +124,7 @@ if [ "$PYTHON_MAJOR" -gt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" 
     if [ -z "$PYTHON_CMD" ]; then
         echo "   Attempting to install python3.11..."
         set +e
-        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v -E "(Unable to locate|Couldn't find)" || true
+        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v -E "(Unable to locate|Couldn't find|Error:)" || true
         set -e
         
         if command -v python3.11 &> /dev/null; then
@@ -132,15 +132,16 @@ if [ "$PYTHON_MAJOR" -gt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" 
             echo "✅ Successfully installed and using python3.11"
         else
             echo ""
-            echo "❌ Error: Could not find or install Python 3.11"
+            echo "⚠️  Warning: Could not find or install Python 3.11"
             echo ""
-            echo "   Options:"
-            echo "   1. Install Python 3.11 from a different source (e.g., deadsnakes PPA)"
-            echo "   2. Build MediaPipe from source (see README troubleshooting section)"
-            echo "   3. Use a different Raspberry Pi OS version with Python 3.11"
+            echo "   Continuing with Python $PYTHON_VERSION_FULL"
+            echo "   MediaPipe 0.10.18 will NOT work with Python 3.13"
             echo ""
-            echo "   For now, continuing with Python $PYTHON_VERSION_FULL"
-            echo "   MediaPipe installation may fail - you'll need to build from source"
+            echo "   Options after setup:"
+            echo "   1. Build MediaPipe from source (see README troubleshooting section)"
+            echo "   2. Use Raspberry Pi OS Bookworm (includes Python 3.11)"
+            echo "   3. Install Python 3.11 from backports or other sources"
+            echo ""
             PYTHON_CMD=python3
         fi
     fi
@@ -162,8 +163,17 @@ if [ -d ".venv" ]; then
 fi
 
 if [ ! -d ".venv" ]; then
+    if [ -z "$PYTHON_CMD" ]; then
+        PYTHON_CMD=python3
+    fi
+    echo "   Creating venv with: $PYTHON_CMD"
     $PYTHON_CMD -m venv --system-site-packages .venv
-    echo "✅ Created virtual environment with system site-packages using $PYTHON_CMD"
+    if [ $? -eq 0 ]; then
+        echo "✅ Created virtual environment with system site-packages using $PYTHON_CMD"
+    else
+        echo "❌ Failed to create virtual environment"
+        exit 1
+    fi
 else
     echo "✅ Using existing .venv"
 fi
