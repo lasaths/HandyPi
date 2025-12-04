@@ -250,12 +250,14 @@ HandyPi/
 
 ## Dependencies
 
-- `mediapipe>=0.10.21` - Hand tracking
-- `opencv-python>=4.11.0.86` - Camera capture and visualization
-- `numpy>=1.26.4` - Numerical operations
+- `mediapipe>=0.10.21` (>=0.10.0 on ARM64/Raspberry Pi) - Hand tracking
+- `opencv-python>=4.8.0,<4.12.0` - Camera capture and visualization (constrained to work with MediaPipe's numpy<2 requirement)
+- `numpy>=1.26.4,<2` - Numerical operations (constrained by MediaPipe requirement)
 - `pika>=1.3.2` - RabbitMQ client
 - `python-dotenv>=1.0.0` - Environment variable management
 - `rich>=14.2.0` - Enhanced console output
+
+**Note:** MediaPipe 0.10.21 requires `numpy<2`, while OpenCV 4.12+ requires `numpy>=2`. The project uses OpenCV <4.12.0 to maintain compatibility with MediaPipe.
 
 ## Configuration
 
