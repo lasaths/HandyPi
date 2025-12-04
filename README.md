@@ -78,74 +78,38 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    cd HandyPi
    ```
 
-### Step 4: Install Dependencies
+### Step 4: Install Dependencies (Raspberry Pi – no `uv sync`)
 
-**Option A: Automated Setup (Recommended)**
+**Raspberry Pi: create a fresh environment (no `uv sync` / `uv run`)**
 
-Run the setup script to automate all installation steps:
+The Pi should **not** use `uv sync` or `uv run`, because they will recreate the virtual environment
+without `--system-site-packages` and break access to `python3-picamera2`.
+
+Run these commands on the Pi (from the `HandyPi` folder):
 
 ```bash
 cd ~/HandyPi
-chmod +x setup_pi.sh
-./setup_pi.sh
+
+# 1. Create venv that can see system packages (required for Picamera2)
+uv venv --python /usr/bin/python3 --system-site-packages .venv
+source .venv/bin/activate
+
+# 2. System packages
+sudo apt update
+sudo apt install -y python3-picamera2
+
+# 3. Verify Picamera2
+python -c "from picamera2 import Picamera2; print(Picamera2)"
+
+# 4. Python deps for YOLO + RabbitMQ logging
+uv pip install ultralytics rich pika
+
+# 5. Run YOLO pose with PiCamera
+python yolo.py --picamera --model yolo11n-pose.pt
 ```
 
-The script will:
-- Update system packages
-- Install MediaPipe dependencies
-- Install Picamera2 via apt
-- Set up camera permissions
-- Create virtual environment with system site-packages
-- Install Python dependencies
-- Verify everything is working
-
-**Option B: Manual Setup**
-
-If you prefer to set up manually:
-
-1. **Update system packages and install MediaPipe dependencies:**
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   sudo apt install -y libusb-1.0-0 libgcc1 libjpeg62-turbo libjbig0 libstdc++6 libtiff5 libc6 liblzma5 libpng16-16 zlib1g libudev1 libdc1394-22 libatomic1 libraw1394-11
-   ```
-
-2. **Install Picamera2 (for Raspberry Pi Camera Modules):**
-   ```bash
-   sudo apt install -y python3-picamera2 python3-opencv
-   ```
-   **Important:** Picamera2 should be installed via `apt`, not `pip`, to avoid ABI compatibility issues. This enables native support for Camera Module 3 / 3 Wide.
-
-3. **Grant camera permissions:**
-   ```bash
-   sudo usermod -a -G video $USER
-   ```
-   You may need to log out and back in for this to take effect.
-
-4. **Verify Picamera2 in system Python:**
-   ```bash
-   python3 -c "from picamera2 import Picamera2; print('system Picamera2 OK')"
-   ```
-   This should succeed. If it fails, check that `python3-picamera2` is installed correctly.
-
-5. **Create virtual environment with system site-packages:**
-   ```bash
-   cd ~/HandyPi
-   # Remove any existing uv-managed venv
-   rm -rf .venv
-   # Create venv that can see system packages (required for Picamera2)
-   python3 -m venv --system-site-packages .venv
-   # Activate the virtual environment
-   source .venv/bin/activate
-   ```
-
-6. **Install project dependencies:**
-   ```bash
-   # Still in the activated venv, install dependencies
-   pip install -r requirements.txt
-   ```
-   **Note:** On Raspberry Pi, we use MediaPipe 0.10.18 (last version with ARM64 wheels). For other platforms, you can use `mediapipe>=0.10.21`.
-   
-   **Important:** Do not use `uv sync` or `uv run` in this project, as they will recreate the virtual environment without system site-packages, breaking Picamera2 access.
+This flow uses `uv` **only** to manage the virtualenv and pip (`uv venv`, `uv pip`), not as a project
+manager (`uv sync`), and keeps Picamera2 coming from `apt` only.
 
 ### Step 8: Configure Environment Variables
 

@@ -187,10 +187,10 @@ def run_live(
             # Grab frame
             # ---------------------------------------------------------------
             if use_picamera:
-                # PiCamera2 frame (RGB888 as in Ultralytics docs)
+                # PiCamera2 frame ("RGB888" which is in BGR byte order for OpenCV)
                 frame = picam2.capture_array()
-                # Convert RGB → BGR for correct OpenCV display and consistency
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Convert BGR → RGB for YOLO, which expects RGB input
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             else:
                 success, frame = cap.read()
                 if not success:
@@ -281,13 +281,14 @@ def run_live(
                     end="\r",
                 )
             else:
-                # No person/keypoints detected – reset pinch state
+                # No person/keypoints detected – always reset local pinch state.
+                # Only guard the RabbitMQ publish on channel availability.
                 if previous_pinch_state and rabbitmq_channel is not None:
                     try:
                         send_pinch_trigger(rabbitmq_channel, False)
                     except Exception as e:
                         console.print(f"[red]Failed to send message: {e}[/red]")
-                    previous_pinch_state = False
+                previous_pinch_state = False
 
             # ---------------------------------------------------------------
             # Draw FPS & show
