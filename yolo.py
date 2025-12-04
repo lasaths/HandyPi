@@ -1,7 +1,10 @@
-"""Main application for YOLO11 pose full-body 'pinch' (hand raise) and RabbitMQ messaging on Raspberry Pi."""
+"""Main application for YOLO11 pose full-body 'pinch' (hand raise)
+and RabbitMQ messaging on Raspberry Pi.
+"""
+
 import argparse
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -84,7 +87,7 @@ def compute_pinch_score_from_kpts(kpts: np.ndarray) -> float:
     return dist_hw / body_scale
 
 
-def get_pinch_point_from_kpts(kpts: np.ndarray) -> tuple[int, int]:
+def get_pinch_point_from_kpts(kpts: np.ndarray) -> Tuple[int, int]:
     """
     Visual point for the 'pinch' marker.
     We use the right wrist position as the gesture point.
@@ -93,7 +96,7 @@ def get_pinch_point_from_kpts(kpts: np.ndarray) -> tuple[int, int]:
     return int(rwrist[0]), int(rwrist[1])
 
 
-def get_hand_position_from_kpts(kpts: np.ndarray) -> tuple[int, int]:
+def get_hand_position_from_kpts(kpts: np.ndarray) -> Tuple[int, int]:
     """
     Position to send instead of thumb tip (we only have wrists).
     Right wrist in pixel coordinates.
@@ -102,7 +105,7 @@ def get_hand_position_from_kpts(kpts: np.ndarray) -> tuple[int, int]:
     return int(rwrist[0]), int(rwrist[1])
 
 
-def draw_target_visualization(frame: np.ndarray, point: tuple[int, int]) -> None:
+def draw_target_visualization(frame: np.ndarray, point: Tuple[int, int]) -> None:
     """Draw a small target marker at the given pixel point on the frame."""
     x, y = point
     cv2.circle(frame, (x, y), 10, (0, 0, 255), 2)
@@ -186,6 +189,8 @@ def run_live(
             if use_picamera:
                 # PiCamera2 frame (RGB888 as in Ultralytics docs)
                 frame = picam2.capture_array()
+                # Convert RGB → BGR for correct OpenCV display and consistency
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             else:
                 success, frame = cap.read()
                 if not success:
@@ -211,7 +216,8 @@ def run_live(
             # ---------------------------------------------------------------
             kpts_xy = None
             if result.keypoints is not None and len(result.keypoints) > 0:
-                kpts_all = result.keypoints.xy  # (num_instances, num_kpts, 2) tensor
+                # (num_instances, num_kpts, 2) tensor
+                kpts_all = result.keypoints.xy
 
                 if result.boxes is not None and len(result.boxes) == len(kpts_all):
                     confs = result.boxes.conf.cpu().numpy()
@@ -251,7 +257,8 @@ def run_live(
                         frame_height, frame_width = annotated_frame.shape[:2]
                         hand_x_normalized = hand_x_px / frame_width
                         hand_y_normalized = hand_y_px / frame_height
-                        send_thumb_position(  # reusing existing function name
+                        # Reuse existing function name for thumb position
+                        send_thumb_position(
                             rabbitmq_channel,
                             hand_x_normalized,
                             hand_y_normalized,
@@ -298,7 +305,7 @@ def run_live(
 
             cv2.imshow("HandyPi – YOLO11 pose full-body gesture", annotated_frame)
             key = cv2.waitKey(1) & 0xFF
-            if key in (ord("q"), 27):
+            if key in (ord("q"), 27):  # 'q' or ESC
                 break
 
     finally:
