@@ -110,20 +110,39 @@ if [ "$PYTHON_MAJOR" -gt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" 
     echo "⚠️  Python $PYTHON_VERSION_FULL detected"
     echo "   MediaPipe 0.10.18 requires Python <= 3.11"
     
-    # Check if python3.11 is available
-    if command -v python3.11 &> /dev/null; then
-        echo "✅ Found python3.11, using it for the virtual environment"
-        PYTHON_CMD=python3.11
-    else
-        echo "   Installing python3.11..."
+    # Try to find an available Python version <= 3.11
+    PYTHON_CMD=""
+    for pyver in 3.11 3.10 3.9; do
+        if command -v python$pyver &> /dev/null; then
+            echo "✅ Found python$pyver, using it for the virtual environment"
+            PYTHON_CMD=python$pyver
+            break
+        fi
+    done
+    
+    # If no compatible Python found, try to install Python 3.11
+    if [ -z "$PYTHON_CMD" ]; then
+        echo "   Attempting to install python3.11..."
         set +e
-        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v "Unable to locate package" || {
-            echo "❌ Could not install python3.11"
-            echo "   You may need to use a different Python version or build MediaPipe from source"
-            exit 1
-        }
+        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v -E "(Unable to locate|Couldn't find)" || true
         set -e
-        PYTHON_CMD=python3.11
+        
+        if command -v python3.11 &> /dev/null; then
+            PYTHON_CMD=python3.11
+            echo "✅ Successfully installed and using python3.11"
+        else
+            echo ""
+            echo "❌ Error: Could not find or install Python 3.11"
+            echo ""
+            echo "   Options:"
+            echo "   1. Install Python 3.11 from a different source (e.g., deadsnakes PPA)"
+            echo "   2. Build MediaPipe from source (see README troubleshooting section)"
+            echo "   3. Use a different Raspberry Pi OS version with Python 3.11"
+            echo ""
+            echo "   For now, continuing with Python $PYTHON_VERSION_FULL"
+            echo "   MediaPipe installation may fail - you'll need to build from source"
+            PYTHON_CMD=python3
+        fi
     fi
 else
     PYTHON_CMD=python3
@@ -164,11 +183,29 @@ pip install --upgrade pip
 # Install dependencies from requirements.txt
 if [ -f "requirements.txt" ]; then
     echo "   Installing from requirements.txt..."
+    set +e
     pip install -r requirements.txt
-    echo "✅ Installed dependencies from requirements.txt"
+    INSTALL_STATUS=$?
+    set -e
+    
+    if [ $INSTALL_STATUS -ne 0 ]; then
+        echo ""
+        echo "⚠️  Warning: Some packages failed to install"
+        echo "   This is likely due to Python version incompatibility"
+        echo ""
+        echo "   If MediaPipe failed, you may need to:"
+        echo "   1. Build MediaPipe from source (see README)"
+        echo "   2. Use a different Python version"
+        echo ""
+        echo "   Continuing with available packages..."
+    else
+        echo "✅ Installed dependencies from requirements.txt"
+    fi
 else
     echo "⚠️  requirements.txt not found, installing manually..."
+    set +e
     pip install mediapipe==0.10.18 opencv-python numpy pika python-dotenv rich
+    set -e
 fi
 
 # Step 9: Verify Picamera2 in venv

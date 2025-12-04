@@ -321,20 +321,43 @@ If you get `ModuleNotFoundError: No module named 'picamera2'`:
 
 ### MediaPipe Installation Issues
 
-MediaPipe 0.10.18 is the last version with ARM64 wheels ([GitHub issue #5965](https://github.com/google-ai-edge/mediapipe/issues/5965)). If `uv sync` fails:
+MediaPipe 0.10.18 is the last version with ARM64 wheels ([GitHub issue #5965](https://github.com/google-ai-edge/mediapipe/issues/5965)) and requires Python <= 3.11.
 
+**If you have Python 3.12+ (e.g., Debian Trixie):**
+
+1. **Option 1: Install Python 3.11** (recommended):
+   ```bash
+   # Add deadsnakes PPA (if on Ubuntu/Debian)
+   sudo apt install -y software-properties-common
+   sudo add-apt-repository ppa:deadsnakes/ppa
+   sudo apt update
+   sudo apt install -y python3.11 python3.11-venv python3.11-dev
+   
+   # Then recreate venv with Python 3.11
+   rm -rf .venv
+   python3.11 -m venv --system-site-packages .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+2. **Option 2: Build MediaPipe from source** (for Python 3.12+):
+   ```bash
+   source .venv/bin/activate
+   sudo apt install -y python3-dev python3-venv protobuf-compiler cmake build-essential
+   git clone https://github.com/google/mediapipe.git
+   cd mediapipe
+   python3 -m pip install --upgrade pip
+   python3 -m pip install -r requirements.txt
+   python3 setup.py install --link-opencv
+   cd ..
+   rm -rf mediapipe
+   ```
+
+**If pip install fails on Raspberry Pi:**
 ```bash
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install mediapipe==0.10.18
-```
-
-**Build from source (for newer versions):**
-```bash
-sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
-git clone https://github.com/google/mediapipe.git
-cd mediapipe && python3 -m pip install -r requirements.txt && python setup.py install --link-opencv
-cd .. && rm -rf mediapipe
 ```
 
 ## Quick Reference
