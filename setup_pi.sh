@@ -58,13 +58,43 @@ echo ""
 echo "📷 Step 3: Installing Picamera2..."
 sudo apt install -y python3-picamera2 python3-opencv
 
-# Step 4: Verify Picamera2 in system Python
+# Step 4: Select Python interpreter (prefer 3.11) and verify Picamera2
 echo ""
-echo "🔍 Step 4: Verifying Picamera2 installation..."
-if python3 -c "from picamera2 import Picamera2; print('Picamera2 OK')" 2>/dev/null; then
-    echo "✅ Picamera2 is available in system Python"
+echo "🔍 Step 4: Selecting Python interpreter (prefer 3.11) and verifying Picamera2..."
+
+PYTHON_CMD=""
+
+# Prefer python3.11 if it exists, otherwise fall back to python3
+if command -v python3.11 &> /dev/null; then
+    PYTHON_CMD=python3.11
+    echo "   Found python3.11, using it."
+elif command -v python3 &> /dev/null; then
+    PYTHON_CMD=python3
+    echo "   python3.11 not found, using default python3."
 else
-    echo "❌ Error: Picamera2 not found in system Python"
+    echo "❌ Error: No python3 interpreter found on PATH"
+    exit 1
+fi
+
+PYTHON_VERSION_FULL=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+PYTHON_MAJOR=$(echo "$PYTHON_VERSION_FULL" | cut -d'.' -f1)
+PYTHON_MINOR=$(echo "$PYTHON_VERSION_FULL" | cut -d'.' -f2)
+
+echo "   Selected interpreter: $PYTHON_CMD (version $PYTHON_VERSION_FULL)"
+
+# MediaPipe 0.10.18 supports up to Python 3.11
+if [ "$PYTHON_MAJOR" -gt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]; }; then
+    echo "⚠️  $PYTHON_CMD is version $PYTHON_VERSION_FULL"
+    echo "   MediaPipe 0.10.18 requires Python <= 3.11."
+    echo "   Please install python3.11 (e.g. 'sudo apt install python3.11 python3.11-venv')"
+    exit 1
+fi
+
+# Verify Picamera2 with the selected interpreter
+if $PYTHON_CMD -c "from picamera2 import Picamera2; print('Picamera2 OK')" 2>/dev/null; then
+    echo "✅ Picamera2 is available in $PYTHON_CMD"
+else
+    echo "❌ Error: Picamera2 not found in $PYTHON_CMD"
     echo "   Try: sudo apt install -y python3-picamera2"
     exit 1
 fi
@@ -98,57 +128,7 @@ fi
 echo ""
 echo "🐍 Step 7: Creating virtual environment..."
 
-# Check Python version - MediaPipe 0.10.18 requires Python <= 3.11
-PYTHON_VERSION_FULL=$(python3 --version 2>&1 | awk '{print $2}')
-PYTHON_MAJOR=$(echo $PYTHON_VERSION_FULL | cut -d'.' -f1)
-PYTHON_MINOR=$(echo $PYTHON_VERSION_FULL | cut -d'.' -f2)
-
-echo "   System Python version: $PYTHON_VERSION_FULL"
-
-# Check if we need Python 3.11 (MediaPipe 0.10.18 doesn't support Python 3.12+)
-if [ "$PYTHON_MAJOR" -gt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]); then
-    echo "⚠️  Python $PYTHON_VERSION_FULL detected"
-    echo "   MediaPipe 0.10.18 requires Python <= 3.11"
-    
-    # Try to find an available Python version <= 3.11
-    PYTHON_CMD=""
-    for pyver in 3.11 3.10 3.9; do
-        if command -v python$pyver &> /dev/null; then
-            echo "✅ Found python$pyver, using it for the virtual environment"
-            PYTHON_CMD=python$pyver
-            break
-        fi
-    done
-    
-    # If no compatible Python found, try to install Python 3.11
-    if [ -z "$PYTHON_CMD" ]; then
-        echo "   Attempting to install python3.11..."
-        set +e
-        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v -E "(Unable to locate|Couldn't find|Error:)" || true
-        set -e
-        
-        if command -v python3.11 &> /dev/null; then
-            PYTHON_CMD=python3.11
-            echo "✅ Successfully installed and using python3.11"
-        else
-            echo ""
-            echo "⚠️  Warning: Could not find or install Python 3.11"
-            echo ""
-            echo "   Continuing with Python $PYTHON_VERSION_FULL"
-            echo "   MediaPipe 0.10.18 will NOT work with Python 3.13"
-            echo ""
-            echo "   Options after setup:"
-            echo "   1. Build MediaPipe from source (see README troubleshooting section)"
-            echo "   2. Use Raspberry Pi OS Bookworm (includes Python 3.11)"
-            echo "   3. Install Python 3.11 from backports or other sources"
-            echo ""
-            PYTHON_CMD=python3
-        fi
-    fi
-else
-    PYTHON_CMD=python3
-    echo "✅ Using $PYTHON_CMD (version $PYTHON_VERSION_FULL is compatible with MediaPipe 0.10.18)"
-fi
+echo "   Using Python interpreter: $PYTHON_CMD"
 
 if [ -d ".venv" ]; then
     echo "⚠️  Existing .venv directory found"
@@ -163,24 +143,15 @@ if [ -d ".venv" ]; then
 fi
 
 if [ ! -d ".venv" ]; then
-    # Ensure PYTHON_CMD is set
-    if [ -z "$PYTHON_CMD" ]; then
-        PYTHON_CMD=python3
-    fi
-    
-    # Verify the Python command exists
+    # Double-check that PYTHON_CMD still exists
     if ! command -v "$PYTHON_CMD" &> /dev/null; then
-        echo "❌ Error: $PYTHON_CMD not found"
+        echo "❌ Error: $PYTHON_CMD not found (it may have been removed)"
         echo "   Falling back to python3"
         PYTHON_CMD=python3
-        if ! command -v "$PYTHON_CMD" &> /dev/null; then
-            echo "❌ Error: python3 not found either"
-            exit 1
-        fi
     fi
-    
-    echo "   Creating venv with: $PYTHON_CMD"
-    $PYTHON_CMD -m venv --system-site-packages .venv
+
+    echo "   Creating venv with: $PYTHON_CMD -m venv --system-site-packages .venv"
+    "$PYTHON_CMD" -m venv --system-site-packages .venv
     if [ $? -eq 0 ]; then
         echo "✅ Created virtual environment with system site-packages using $PYTHON_CMD"
     else
