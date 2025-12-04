@@ -13,10 +13,10 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
 
 ## Prerequisites
 
-- Python 3.11 or higher (3.11 recommended for Raspberry Pi - piwheels has MediaPipe builds for 3.11)
+- Python 3.11 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
-- Camera/webcam connected to your system
-- RabbitMQ server (local or remote)
+- Camera/webcam
+- RabbitMQ server
 
 ## Raspberry Pi Initial Setup
 
@@ -33,12 +33,8 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    - Click "Choose Storage" → Select your SD card
    - Click the gear icon (⚙️) to open advanced options:
      - **Enable SSH**: Check "Enable SSH" → Use password authentication
-     - **Set username and password**: 
-       - Username: `radr`
-       - Password: `radr123` (or your preferred password)
-     - **Configure wireless LAN**: 
-       - SSID: `radr_open_X` (where X is your Pi Kit Number)
-       - Password: `radr_password`
+     - **Set username and password**: Username: `radr`, Password: `radr123`
+     - **Configure wireless LAN**: SSID: `radr_open_X` (X = Pi Kit Number), Password: `radr_password`
      - **Set locale settings**: Choose your timezone and keyboard layout
    - Click "Save" to apply settings
    - Click "Write" to flash the SD card (this will erase all data on the card)
@@ -84,102 +80,56 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
 
 ### Step 4: Install Dependencies
 
-1. **Update system packages:**
+1. **Update system packages and install MediaPipe dependencies:**
    ```bash
    sudo apt update && sudo apt upgrade -y
-   ```
-   This ensures your Raspberry Pi has the latest system packages and security updates.
-
-2. **Install system dependencies for MediaPipe (Raspberry Pi only):**
-   ```bash
    sudo apt install -y libusb-1.0-0 libgcc1 libjpeg62-turbo libjbig0 libstdc++6 libtiff5 libc6 liblzma5 libpng16-16 zlib1g libudev1 libdc1394-22 libatomic1 libraw1394-11
    ```
-   These libraries are required for MediaPipe on Raspberry Pi.
 
-3. **Install uv (if not already installed):**
+2. **Install uv (if not already installed):**
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
-   source ~/.bashrc  # or restart terminal
+   source ~/.bashrc
    ```
 
-4. **Sync project dependencies:**
+3. **Sync project dependencies:**
    ```bash
    uv sync
    ```
+   Creates virtual environment and installs dependencies. On Raspberry Pi, uses MediaPipe 0.10.18 (last version with ARM64 wheels).
 
-   This will create a virtual environment and install all Python dependencies except MediaPipe (which must be installed manually on Raspberry Pi - see next step).
+### Step 4: Configure Environment Variables
 
-5. **Install MediaPipe manually (Raspberry Pi only):**
-   ```bash
-   source .venv/bin/activate
-   python3 -m pip install --upgrade pip
-   python3 -m pip install mediapipe
-   ```
+Create `.env` file with RabbitMQ configuration:
 
-   Regular `pip` automatically uses [piwheels.org](https://www.piwheels.org) for ARM-compatible builds.
-
-### Step 6: Configure Environment Variables
-
-1. **Create `.env` file:**
-   ```bash
-   nano .env
-   ```
-
-2. **Add RabbitMQ configuration:**
-   ```env
-   RABBITMQ_USERNAME=radr
-   RABBITMQ_PASSWORD=radr123
-   RABBITMQ_HOST=localhost
-   RABBITMQ_PORT=5672
-   RABBITMQ_VHOST=/
-   RABBITMQ_EXCHANGE_NAME=hand_tracking
-   RABBITMQ_EXCHANGE_TYPE=topic
-   RABBITMQ_ROUTING_KEY_POSITION=thumb.position
-   ```
-
-3. **Save and exit:**
-   - Press `Ctrl+X`, then `Y`, then `Enter`
-
-### Step 7: Run the Application
-
-```bash
-uv run main.py
+```env
+RABBITMQ_USERNAME=radr
+RABBITMQ_PASSWORD=radr123
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_VHOST=/
+RABBITMQ_EXCHANGE_NAME=hand_tracking
+RABBITMQ_EXCHANGE_TYPE=topic
+RABBITMQ_ROUTING_KEY_POSITION=thumb.position
 ```
 
-**Optional arguments:**
+### Step 5: Run the Application
+
 ```bash
-uv run main.py --camera 0 --width 640 --height 480 --max-hands 1
+uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ```
 
 Press `q` or `ESC` to quit.
 
 ## Installation (Local Development)
 
-For development on your local machine (not Raspberry Pi):
+```bash
+git clone https://github.com/lasaths/HandyPi.git
+cd HandyPi
+uv sync
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/lasaths/HandyPi.git
-   cd HandyPi
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   uv sync
-   ```
-
-3. **Configure environment variables:**
-   Create a `.env` file in the project root with the following variables:
-   ```env
-   RABBITMQ_USERNAME=your_username
-   RABBITMQ_PASSWORD=your_password
-   RABBITMQ_HOST=localhost
-   RABBITMQ_PORT=5672
-   RABBITMQ_VHOST=/
-   RABBITMQ_EXCHANGE_NAME=hand_tracking
-   RABBITMQ_EXCHANGE_TYPE=topic
-   RABBITMQ_ROUTING_KEY_POSITION=thumb.position
-   ```
+Create `.env` file with your RabbitMQ credentials (see Step 4 above for format).
 
 ## Usage
 
@@ -210,47 +160,30 @@ This will listen for both pinch trigger messages and thumb position messages, di
 
 ## How It Works
 
-1. **Hand Tracking**: Uses MediaPipe Hands to detect and track hand landmarks in real-time
-2. **Pinch Detection**: Calculates the distance between thumb tip (landmark 4) and index finger tip (landmark 8)
-3. **Message Sending**: 
-   - When pinch state changes (starts or stops), a boolean trigger message is sent to RabbitMQ
-   - While pinching (distance < 40px), the normalized thumb position `[x, y]` is continuously sent to RabbitMQ
-4. **Visualization**: Displays hand landmarks, connections, and a target overlay when pinching
+1. **Hand Tracking**: MediaPipe Hands detects hand landmarks in real-time
+2. **Pinch Detection**: Distance between thumb tip (landmark 4) and index tip (landmark 8)
+3. **Message Sending**:
+   - Pinch state changes → boolean trigger to `RADr.Handout.Trigger`
+   - While pinching (distance < 40px) → normalized thumb position `[x, y]` to `thumb.position`
+4. **Visualization**: Hand landmarks, connections, and target overlay when pinching
 
 ### Message Formats
 
-The application sends two types of messages to RabbitMQ:
+**Pinch Trigger** (state changes): `RADr.Handout.Trigger` → JSON boolean (`true`/`false`)
 
-#### 1. Pinch Trigger Messages
-Sent when pinch state changes (on/off):
-- **Routing Key**: `RADr.Handout.Trigger` (hardcoded)
-- **Format**: JSON boolean
-- **Example**: `true` or `false`
-
-#### 2. Thumb Position Messages
-Sent continuously while pinching:
-- **Routing Key**: `thumb.position` (configurable via `RABBITMQ_ROUTING_KEY_POSITION`)
-- **Format**: JSON array with normalized coordinates (0.0 to 1.0)
-- **Example**: `[0.5234, 0.6789]`
-- **Coordinates**:
-  - First value: Normalized X position (0.0 = left edge, 1.0 = right edge)
-  - Second value: Normalized Y position (0.0 = top edge, 1.0 = bottom edge)
+**Thumb Position** (while pinching): `thumb.position` → JSON array `[x, y]` (normalized 0.0-1.0)
 
 ## Project Structure
 
-```
-HandyPi/
-├── main.py           # Main application entry point
-├── tracker.py        # Hand tracking using MediaPipe
-├── rabbitmq.py       # RabbitMQ connection and messaging utilities
-├── consumer.py       # Test consumer for RabbitMQ messages
-├── pyproject.toml    # Project dependencies and metadata
-└── README.md         # This file
-```
+- `main.py` - Main application entry point
+- `tracker.py` - Hand tracking using MediaPipe
+- `rabbitmq.py` - RabbitMQ connection and messaging
+- `consumer.py` - Test consumer for RabbitMQ messages
+- `pyproject.toml` - Project dependencies
 
 ## Dependencies
 
-- `mediapipe>=0.10.21` (>=0.10.0 on ARM64/Raspberry Pi) - Hand tracking
+- `mediapipe>=0.10.21` (0.10.18 on ARM64/Raspberry Pi - last version with ARM64 wheels) - Hand tracking
 - `opencv-python>=4.8.0,<4.12.0` - Camera capture and visualization
 - `numpy>=1.26.4,<2` - Numerical operations
 - `pika>=1.3.2` - RabbitMQ client
@@ -259,31 +192,12 @@ HandyPi/
 
 ## Configuration
 
-### Environment Variables
+RabbitMQ settings are configured via `.env` file (see Step 4). Pinch trigger routing key (`RADr.Handout.Trigger`) is hardcoded.
 
-All RabbitMQ configuration is done via environment variables in `.env`:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `RABBITMQ_USERNAME` | RabbitMQ username | `guest` |
-| `RABBITMQ_PASSWORD` | RabbitMQ password | `guest` |
-| `RABBITMQ_HOST` | RabbitMQ server host | `localhost` |
-| `RABBITMQ_PORT` | RabbitMQ server port | `5672` |
-| `RABBITMQ_VHOST` | Virtual host | `/` |
-| `RABBITMQ_EXCHANGE_NAME` | Exchange name | `hand_tracking` |
-| `RABBITMQ_EXCHANGE_TYPE` | Exchange type | `topic` |
-| `RABBITMQ_ROUTING_KEY_POSITION` | Routing key for position messages | `thumb.position` |
-
-**Note**: The pinch trigger routing key (`RADr.Handout.Trigger`) is hardcoded in the application and cannot be configured via environment variables.
-
-### Pinch Detection Threshold
-
-The pinch detection threshold is hardcoded in `main.py`:
+Pinch detection threshold (40px) is in `main.py`:
 ```python
 PINCH_DISTANCE_THRESHOLD = 40  # pixels
 ```
-
-Adjust this value to change the sensitivity of pinch detection.
 
 ## Troubleshooting
 
@@ -304,50 +218,26 @@ Adjust this value to change the sensitivity of pinch detection.
 - Try adjusting `--max-hands` parameter
 - Check camera resolution settings
 
-### MediaPipe Installation Issues on Raspberry Pi
+### MediaPipe Installation Issues
 
-MediaPipe is excluded from `uv sync` on ARM64 because PyPI doesn't provide ARM64 wheels. Install it manually:
+MediaPipe 0.10.18 is the last version with ARM64 wheels ([GitHub issue #5965](https://github.com/google-ai-edge/mediapipe/issues/5965)). If `uv sync` fails:
 
 ```bash
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
-python3 -m pip install mediapipe
+python3 -m pip install mediapipe==0.10.18
 ```
 
-**If that fails, build from source:**
-
+**Build from source (for newer versions):**
 ```bash
 sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
 git clone https://github.com/google/mediapipe.git
-cd mediapipe
-python3 -m pip install -r requirements.txt
-python setup.py install --link-opencv
-cd ..
-rm -rf mediapipe
+cd mediapipe && python3 -m pip install -r requirements.txt && python setup.py install --link-opencv
+cd .. && rm -rf mediapipe
 ```
 
-**Verify installation:**
-```bash
-python -c "import mediapipe; print('MediaPipe installed successfully')"
-```
+## Quick Reference
 
-## Raspberry Pi Quick Reference
-
-**Default Credentials:**
-- SSH Username: `radr`
-- SSH Password: `radr123` (or the password you set during SD card setup)
-- Hostname: `raspberrypi.local`
-
-**Network:**
-- SSID: `radr_open_X` (X = Pi Kit Number)
-- Password: `radr_password`
-
-**RabbitMQ:**
-- Username: `radr`
-- Password: `radr123`
-
-**Direct SSH Connection (alternative to VS Code):**
-```bash
-ssh radr@raspberrypi.local
-# Password: radr123 (or the password you set during SD card setup)
-```
+**SSH:** `radr@raspberrypi.local` (password: `radr123`)  
+**Network:** `radr_open_X` / `radr_password`  
+**RabbitMQ:** `radr` / `radr123`
