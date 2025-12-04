@@ -113,7 +113,10 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    - On Raspberry Pi, `uv` will automatically use [piwheels.org](https://www.piwheels.org) (configured in `pyproject.toml`) to find ARM-compatible builds
    - May take several minutes on first run
 
-   **Note:** The project is configured to use [piwheels.org](https://www.piwheels.org) as an additional package index. This allows `uv` to find ARM-compatible wheels for Raspberry Pi, since PyPI doesn't provide ARM64 wheels for MediaPipe. Regular `pip` works on Pi because it automatically uses piwheels, but `uv` requires explicit configuration.
+   **Note:** The project is configured to:
+   - Use [piwheels.org](https://www.piwheels.org) as an additional package index for ARM-compatible wheels
+   - Use `unsafe-best-match` index strategy to consider versions from all indexes (piwheels may have older MediaPipe versions than PyPI)
+   - This allows `uv` to find ARM-compatible wheels for Raspberry Pi, since PyPI doesn't provide ARM64 wheels for MediaPipe
 
 ### Step 5: Configure Environment Variables
 
