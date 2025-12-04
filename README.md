@@ -110,9 +110,10 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    This will:
    - Create a virtual environment
    - Install all Python dependencies including MediaPipe
+   - On Raspberry Pi, `uv` will automatically use [piwheels.org](https://www.piwheels.org) (configured in `pyproject.toml`) to find ARM-compatible builds
    - May take several minutes on first run
 
-   **Important for Raspberry Pi (64-bit ARM):** If `uv sync` fails with a MediaPipe installation error because there's no wheel for your platform, follow the official Google approach (see Troubleshooting section below). The [official Google MediaPipe samples](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi) use a simple `pip install mediapipe` approach, which may work if you upgrade pip first or build from source.
+   **Note:** The project is configured to use [piwheels.org](https://www.piwheels.org) as an additional package index. This allows `uv` to find ARM-compatible wheels for Raspberry Pi, since PyPI doesn't provide ARM64 wheels for MediaPipe. Regular `pip` works on Pi because it automatically uses piwheels, but `uv` requires explicit configuration.
 
 ### Step 5: Configure Environment Variables
 
@@ -301,56 +302,47 @@ Adjust this value to change the sensitivity of pinch detection.
 - Check camera resolution settings
 
 ### MediaPipe Installation Issues on Raspberry Pi
-If `uv sync` fails with MediaPipe-related errors on Raspberry Pi (especially 64-bit ARM/aarch64), follow these steps based on the [official Google MediaPipe samples approach](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi):
 
-1. **Try the official Google approach first (recommended):**
+**The Problem:** `uv` by default only uses PyPI, which doesn't provide ARM64 wheels for MediaPipe. Regular `pip` works on Raspberry Pi because it automatically uses [piwheels.org](https://www.piwheels.org), which provides ARM-compatible builds.
+
+**The Solution:** This project is already configured to use piwheels via the `[[tool.uv.index]]` section in `pyproject.toml`. If `uv sync` still fails, try:
+
+1. **Force index strategy (if piwheels isn't being used):**
    ```bash
-   # Create venv if not already created
-   uv venv
-   source .venv/bin/activate
-   
-   # Upgrade pip (as per official Google setup.sh)
-   python3 -m pip install pip --upgrade
-   
-   # Try installing mediapipe directly (may build from source automatically)
-   python3 -m pip install mediapipe
+   UV_INDEX_STRATEGY=unsafe-best-match uv sync
+   ```
+   This tells `uv` to use any compatible version from any index.
+
+2. **Verify piwheels configuration:**
+   Check that `pyproject.toml` contains:
+   ```toml
+   [[tool.uv.index]]
+   name = "piwheels"
+   url = "https://www.piwheels.org/simple"
    ```
 
-2. **If that fails, install other dependencies first, then MediaPipe:**
-   ```bash
-   # Install other dependencies
-   uv pip install "numpy>=1.26.4"
-   uv pip install "opencv-python>=4.11.0.86"
-   uv pip install "pika>=1.3.2"
-   uv pip install "python-dotenv>=1.0.0"
-   uv pip install "rich>=14.2.0"
-   
-   # Then try MediaPipe again with upgraded pip
-   python3 -m pip install pip --upgrade
-   python3 -m pip install mediapipe
-   ```
+3. **If piwheels doesn't have your Python version:**
+   piwheels typically supports Python 3.9 and 3.11 on Bullseye/Bookworm. If you're using Python 3.12, you may need to:
+   - Use Python 3.11 instead, or
+   - Build MediaPipe from source:
+     ```bash
+     sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
+     git clone https://github.com/google/mediapipe.git
+     cd mediapipe
+     uv pip install -r requirements.txt
+     python setup.py install --link-opencv
+     cd ..
+     rm -rf mediapipe
+     ```
 
-3. **If MediaPipe still fails, build from source (works on all 64-bit Pi):**
-   ```bash
-   sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
-   git clone https://github.com/google/mediapipe.git
-   cd mediapipe
-   python3 -m pip install -r requirements.txt
-   python setup.py install --link-opencv
-   cd ..
-   rm -rf mediapipe
-   ```
-
-4. **Alternative: Use community packages**
-   - Try `mediapipe-rpi4`: `uv pip install mediapipe-rpi4` (may work on some Pi models)
-   - Check the [mediapipe-bin repository](https://github.com/PINTO0309/mediapipe-bin) for pre-built ARM64 wheels
-
-5. **Verify installation:**
+4. **Verify installation:**
    ```bash
    python -c "import mediapipe; print('MediaPipe installed successfully')"
    ```
 
-**Reference:** The [official Google MediaPipe samples for Raspberry Pi](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi) use a simple `requirements.txt` with just `mediapipe` and a setup script that upgrades pip before installation. This suggests that with an upgraded pip, MediaPipe may be able to build from source automatically, or there may be platform-specific wheels available that aren't detected by default.
+**Reference:** 
+- [piwheels.org MediaPipe page](https://www.piwheels.org/project/mediapipe/) - Shows available ARM builds
+- [uv Package Indexes Documentation](https://docs.astral.sh/uv/concepts/indexes/) - How uv handles multiple indexes
 
 ## Raspberry Pi Quick Reference
 
