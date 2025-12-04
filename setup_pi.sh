@@ -1,13 +1,30 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # HandyPi - Raspberry Pi Setup Script
 # This script sets up the environment for hand tracking on Raspberry Pi
 
-set -e  # Exit on error
+set -euo pipefail
 
 echo "=========================================="
 echo "HandyPi - Raspberry Pi Setup"
 echo "=========================================="
 echo ""
+
+# Helper to install the first available package when names differ across Debian versions
+install_first_available() {
+    local label="$1"
+    shift
+    local variants=("$@")
+
+    for pkg in "${variants[@]}"; do
+        if sudo apt-get install -y "$pkg" >/dev/null 2>&1; then
+            echo "   ✓ $pkg installed (or already present) for $label"
+            return 0
+        fi
+    done
+
+    echo "   ⚠️  Unable to install any of: ${variants[*]}"
+    return 1
+}
 
 # Check if running on Raspberry Pi
 if [ ! -f /proc/device-tree/model ] || ! grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
@@ -21,42 +38,51 @@ fi
 
 # Step 1: Update system packages
 echo "📦 Step 1: Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+export DEBIAN_FRONTEND=noninteractive
+sudo apt-get update
+sudo apt-get upgrade -y
 
 # Step 2: Install MediaPipe dependencies
 echo ""
 echo "📦 Step 2: Installing MediaPipe dependencies..."
-# Try to install packages, continue even if some fail (they may have different names or already be installed)
-set +e  # Temporarily disable exit on error for package installation
-sudo apt install -y \
-    libusb-1.0-0 \
-    libgcc-s1 \
-    libjpeg62-turbo \
-    libjbig0 \
-    libstdc++6 \
-    libtiff6 \
-    libc6 \
-    liblzma5 \
-    libpng16-16t64 \
-    zlib1g \
-    libudev1 \
-    libdc1394-25 \
-    libatomic1 \
-    libraw1394-11 > /dev/null 2>&1 || {
-    # If bulk install fails, try installing individually to see which ones work
-    echo "   Some packages may have different names, trying alternatives..."
-    for pkg in libusb-1.0-0 libgcc-s1 libjpeg62-turbo libjbig0 libstdc++6 libtiff6 libc6 liblzma5 libpng16-16t64 zlib1g libudev1 libdc1394-25 libatomic1 libraw1394-11; do
-        sudo apt install -y "$pkg" > /dev/null 2>&1 || true
-    done
-}
-set -e  # Re-enable exit on error
 
-echo "✅ MediaPipe dependencies installation completed"
+MEDIAPIPE_DEP_GROUPS=(
+    "libusb-1.0-0"
+    "libgcc-s1 libgcc1"
+    "libjpeg62-turbo"
+    "libjbig0"
+    "libstdc++6"
+    "libtiff6 libtiff5"
+    "libc6"
+    "liblzma5"
+    "libpng16-16t64 libpng16-16"
+    "zlib1g"
+    "libudev1"
+    "libdc1394-25 libdc1394-22"
+    "libatomic1"
+    "libraw1394-11"
+)
+
+MISSING_DEPS=()
+
+for dep_group in "${MEDIAPIPE_DEP_GROUPS[@]}"; do
+    IFS=' ' read -r -a variants <<< "$dep_group"
+    if ! install_first_available "${variants[0]}" "${variants[@]}"; then
+        MISSING_DEPS+=("${variants[0]}")
+    fi
+done
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+    echo "⚠️  The following packages could not be installed automatically: ${MISSING_DEPS[*]}"
+    echo "    Please install them manually if MediaPipe reports missing shared libraries."
+else
+    echo "✅ MediaPipe dependencies installation completed"
+fi
 
 # Step 3: Install Picamera2
 echo ""
 echo "📷 Step 3: Installing Picamera2..."
-sudo apt install -y python3-picamera2 python3-opencv
+sudo apt-get install -y python3-picamera2 python3-opencv
 
 # Step 4: Select Python interpreter (prefer 3.11) and verify Picamera2
 echo ""
