@@ -207,27 +207,44 @@ pip install --upgrade pip
 if [ -f "requirements.txt" ]; then
     echo "   Installing from requirements.txt..."
     set +e
-    pip install -r requirements.txt
+    # Try to install all packages, but continue even if MediaPipe fails
+    pip install -r requirements.txt 2>&1 | tee /tmp/pip_install.log
     INSTALL_STATUS=$?
     set -e
     
-    if [ $INSTALL_STATUS -ne 0 ]; then
+    # Check if critical packages (non-MediaPipe) are installed
+    echo ""
+    echo "   Verifying package installation..."
+    MISSING_PACKAGES=()
+    for pkg in pika opencv-python numpy python-dotenv rich; do
+        if ! python -c "import ${pkg//-/_}" 2>/dev/null; then
+            MISSING_PACKAGES+=("$pkg")
+        fi
+    done
+    
+    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+        echo "   Installing missing packages: ${MISSING_PACKAGES[*]}"
+        pip install "${MISSING_PACKAGES[@]}"
+    fi
+    
+    # Check MediaPipe separately
+    if ! python -c "import mediapipe" 2>/dev/null; then
         echo ""
-        echo "⚠️  Warning: Some packages failed to install"
-        echo "   This is likely due to Python version incompatibility"
-        echo ""
-        echo "   If MediaPipe failed, you may need to:"
-        echo "   1. Build MediaPipe from source (see README)"
-        echo "   2. Use a different Python version"
-        echo ""
-        echo "   Continuing with available packages..."
+        echo "⚠️  Warning: MediaPipe failed to install"
+        echo "   This is expected with Python 3.13"
+        echo "   You'll need to build MediaPipe from source (see README)"
+    fi
+    
+    if [ $INSTALL_STATUS -eq 0 ] && [ ${#MISSING_PACKAGES[@]} -eq 0 ]; then
+        echo "✅ Installed all dependencies from requirements.txt"
     else
-        echo "✅ Installed dependencies from requirements.txt"
+        echo "✅ Installed available dependencies (MediaPipe may need manual installation)"
     fi
 else
     echo "⚠️  requirements.txt not found, installing manually..."
     set +e
-    pip install mediapipe==0.10.18 opencv-python numpy pika python-dotenv rich
+    pip install opencv-python numpy pika python-dotenv rich
+    pip install mediapipe==0.10.18 || echo "   MediaPipe installation failed (expected with Python 3.13)"
     set -e
 fi
 
