@@ -97,6 +97,39 @@ fi
 # Step 7: Create virtual environment with system site-packages
 echo ""
 echo "🐍 Step 7: Creating virtual environment..."
+
+# Check Python version - MediaPipe 0.10.18 requires Python <= 3.11
+PYTHON_VERSION_FULL=$(python3 --version 2>&1 | awk '{print $2}')
+PYTHON_MAJOR=$(echo $PYTHON_VERSION_FULL | cut -d'.' -f1)
+PYTHON_MINOR=$(echo $PYTHON_VERSION_FULL | cut -d'.' -f2)
+
+echo "   System Python version: $PYTHON_VERSION_FULL"
+
+# Check if we need Python 3.11 (MediaPipe 0.10.18 doesn't support Python 3.12+)
+if [ "$PYTHON_MAJOR" -gt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]); then
+    echo "⚠️  Python $PYTHON_VERSION_FULL detected"
+    echo "   MediaPipe 0.10.18 requires Python <= 3.11"
+    
+    # Check if python3.11 is available
+    if command -v python3.11 &> /dev/null; then
+        echo "✅ Found python3.11, using it for the virtual environment"
+        PYTHON_CMD=python3.11
+    else
+        echo "   Installing python3.11..."
+        set +e
+        sudo apt install -y python3.11 python3.11-venv python3.11-dev 2>&1 | grep -v "Unable to locate package" || {
+            echo "❌ Could not install python3.11"
+            echo "   You may need to use a different Python version or build MediaPipe from source"
+            exit 1
+        }
+        set -e
+        PYTHON_CMD=python3.11
+    fi
+else
+    PYTHON_CMD=python3
+    echo "✅ Using $PYTHON_CMD (version $PYTHON_VERSION_FULL is compatible with MediaPipe 0.10.18)"
+fi
+
 if [ -d ".venv" ]; then
     echo "⚠️  Existing .venv directory found"
     read -p "Remove and recreate? (y/N): " -n 1 -r
@@ -110,8 +143,8 @@ if [ -d ".venv" ]; then
 fi
 
 if [ ! -d ".venv" ]; then
-    python3 -m venv --system-site-packages .venv
-    echo "✅ Created virtual environment with system site-packages"
+    $PYTHON_CMD -m venv --system-site-packages .venv
+    echo "✅ Created virtual environment with system site-packages using $PYTHON_CMD"
 else
     echo "✅ Using existing .venv"
 fi
@@ -121,11 +154,16 @@ echo ""
 echo "📦 Step 8: Installing Python dependencies..."
 source .venv/bin/activate
 
+# Verify Python version in venv
+VENV_PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2)
+echo "   Using Python $VENV_PYTHON_VERSION in virtual environment"
+
 # Upgrade pip first
 pip install --upgrade pip
 
 # Install dependencies from requirements.txt
 if [ -f "requirements.txt" ]; then
+    echo "   Installing from requirements.txt..."
     pip install -r requirements.txt
     echo "✅ Installed dependencies from requirements.txt"
 else
