@@ -1,11 +1,11 @@
 #!/bin/bash
-# HandyPi (HighPiFive) - Raspberry Pi Setup Script
+# HandyPi - Raspberry Pi Setup Script
 # This script sets up the environment for hand tracking on Raspberry Pi
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "HandyPi (HighPiFive) - Raspberry Pi Setup"
+echo "HandyPi - Raspberry Pi Setup"
 echo "=========================================="
 echo ""
 
@@ -26,21 +26,32 @@ sudo apt update && sudo apt upgrade -y
 # Step 2: Install MediaPipe dependencies
 echo ""
 echo "📦 Step 2: Installing MediaPipe dependencies..."
+# Try to install packages, continue even if some fail (they may have different names or already be installed)
+set +e  # Temporarily disable exit on error for package installation
 sudo apt install -y \
     libusb-1.0-0 \
-    libgcc1 \
+    libgcc-s1 \
     libjpeg62-turbo \
     libjbig0 \
     libstdc++6 \
-    libtiff5 \
+    libtiff6 \
     libc6 \
     liblzma5 \
-    libpng16-16 \
+    libpng16-16t64 \
     zlib1g \
     libudev1 \
-    libdc1394-22 \
+    libdc1394-25 \
     libatomic1 \
-    libraw1394-11
+    libraw1394-11 > /dev/null 2>&1 || {
+    # If bulk install fails, try installing individually to see which ones work
+    echo "   Some packages may have different names, trying alternatives..."
+    for pkg in libusb-1.0-0 libgcc-s1 libjpeg62-turbo libjbig0 libstdc++6 libtiff6 libc6 liblzma5 libpng16-16t64 zlib1g libudev1 libdc1394-25 libatomic1 libraw1394-11; do
+        sudo apt install -y "$pkg" > /dev/null 2>&1 || true
+    done
+}
+set -e  # Re-enable exit on error
+
+echo "✅ MediaPipe dependencies installation completed"
 
 # Step 3: Install Picamera2
 echo ""

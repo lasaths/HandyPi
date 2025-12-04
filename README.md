@@ -1,4 +1,4 @@
-# HandyPi (HighPiFive)
+# HandyPi
 
 A real-time hand tracking application that detects pinch gestures using MediaPipe and sends pinch trigger states and thumb positions to RabbitMQ for distributed robotics applications.
 

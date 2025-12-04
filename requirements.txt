@@ -1,4 +1,4 @@
-# HandyPi (HighPiFive) - Requirements
+# HandyPi - Requirements
 # For Raspberry Pi (ARM64) - use these versions
 # For other platforms, see comments below
 

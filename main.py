@@ -148,7 +148,7 @@ def run_live(
                 cv2.LINE_AA,
             )
 
-            cv2.imshow("HighPiFive – finger tracking", frame)
+            cv2.imshow("HandyPi – finger tracking", frame)
             key = cv2.waitKey(1) & 0xFF
             if key in (ord("q"), 27):
                 break
@@ -167,7 +167,7 @@ def run_live(
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="HighPiFive – simple Raspberry Pi hand + finger tracking demo"
+        description="HandyPi – simple Raspberry Pi hand + finger tracking demo"
     )
     parser.add_argument(
         "--camera",
