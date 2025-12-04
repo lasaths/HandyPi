@@ -84,21 +84,35 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
 
 ### Step 4: Install Dependencies
 
-1. **Install uv (if not already installed):**
+1. **Update system packages:**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   ```
+   This ensures your Raspberry Pi has the latest system packages and security updates.
+
+2. **Install system dependencies for MediaPipe (Raspberry Pi only):**
+   ```bash
+   sudo apt install -y libusb-1.0-0 libgcc1 libjpeg62-turbo libjbig0 libstdc++6 libtiff5 libc6 liblzma5 libpng16-16 zlib1g libudev1 libdc1394-22 libatomic1 libraw1394-11
+   ```
+   These libraries are required for MediaPipe on Raspberry Pi.
+
+3. **Install uv (if not already installed):**
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    source ~/.bashrc  # or restart terminal
    ```
 
-2. **Sync project dependencies:**
+4. **Sync project dependencies:**
    ```bash
    uv sync
    ```
 
    This will:
    - Create a virtual environment
-   - Install all Python dependencies (MediaPipe, OpenCV, etc.)
+   - Install all Python dependencies including MediaPipe
    - May take several minutes on first run
+
+   **Important for Raspberry Pi (64-bit ARM):** If `uv sync` fails with a MediaPipe installation error because there's no wheel for your platform, follow the official Google approach (see Troubleshooting section below). The [official Google MediaPipe samples](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi) use a simple `pip install mediapipe` approach, which may work if you upgrade pip first or build from source.
 
 ### Step 5: Configure Environment Variables
 
@@ -285,6 +299,58 @@ Adjust this value to change the sensitivity of pinch detection.
 - Keep hand within camera frame
 - Try adjusting `--max-hands` parameter
 - Check camera resolution settings
+
+### MediaPipe Installation Issues on Raspberry Pi
+If `uv sync` fails with MediaPipe-related errors on Raspberry Pi (especially 64-bit ARM/aarch64), follow these steps based on the [official Google MediaPipe samples approach](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi):
+
+1. **Try the official Google approach first (recommended):**
+   ```bash
+   # Create venv if not already created
+   uv venv
+   source .venv/bin/activate
+   
+   # Upgrade pip (as per official Google setup.sh)
+   python3 -m pip install pip --upgrade
+   
+   # Try installing mediapipe directly (may build from source automatically)
+   python3 -m pip install mediapipe
+   ```
+
+2. **If that fails, install other dependencies first, then MediaPipe:**
+   ```bash
+   # Install other dependencies
+   uv pip install "numpy>=1.26.4"
+   uv pip install "opencv-python>=4.11.0.86"
+   uv pip install "pika>=1.3.2"
+   uv pip install "python-dotenv>=1.0.0"
+   uv pip install "rich>=14.2.0"
+   
+   # Then try MediaPipe again with upgraded pip
+   python3 -m pip install pip --upgrade
+   python3 -m pip install mediapipe
+   ```
+
+3. **If MediaPipe still fails, build from source (works on all 64-bit Pi):**
+   ```bash
+   sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
+   git clone https://github.com/google/mediapipe.git
+   cd mediapipe
+   python3 -m pip install -r requirements.txt
+   python setup.py install --link-opencv
+   cd ..
+   rm -rf mediapipe
+   ```
+
+4. **Alternative: Use community packages**
+   - Try `mediapipe-rpi4`: `uv pip install mediapipe-rpi4` (may work on some Pi models)
+   - Check the [mediapipe-bin repository](https://github.com/PINTO0309/mediapipe-bin) for pre-built ARM64 wheels
+
+5. **Verify installation:**
+   ```bash
+   python -c "import mediapipe; print('MediaPipe installed successfully')"
+   ```
+
+**Reference:** The [official Google MediaPipe samples for Raspberry Pi](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/hand_landmarker/raspberry_pi) use a simple `requirements.txt` with just `mediapipe` and a setup script that upgrades pip before installation. This suggests that with an upgraded pip, MediaPipe may be able to build from source automatically, or there may be platform-specific wheels available that aren't detected by default.
 
 ## Raspberry Pi Quick Reference
 
