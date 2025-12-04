@@ -1,0 +1,30 @@
+# HandyPi (HighPiFive) - Requirements
+# For Raspberry Pi (ARM64) - use these versions
+# For other platforms, see comments below
+
+# Hand tracking - MediaPipe
+# ARM64/Raspberry Pi: 0.10.18 (last version with ARM64 wheels)
+# Other platforms: >=0.10.21
+mediapipe==0.10.18
+
+# Computer vision - OpenCV
+# ARM64/Raspberry Pi: >=4.8.0 (no upper bound needed)
+# Other platforms: >=4.8.0,<4.11.0
+opencv-python>=4.8.0
+
+# Numerical operations
+numpy>=1.26.4,<2
+
+# RabbitMQ client
+pika>=1.3.2
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Enhanced console output
+rich>=14.2.0
+
+# Note: python3-picamera2 must be installed via apt on Raspberry Pi:
+# sudo apt install -y python3-picamera2
+# It is not available via pip/PyPI
+

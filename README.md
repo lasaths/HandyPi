@@ -80,37 +80,74 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
 
 ### Step 4: Install Dependencies
 
+**Option A: Automated Setup (Recommended)**
+
+Run the setup script to automate all installation steps:
+
+```bash
+cd ~/HandyPi
+chmod +x setup_pi.sh
+./setup_pi.sh
+```
+
+The script will:
+- Update system packages
+- Install MediaPipe dependencies
+- Install Picamera2 via apt
+- Set up camera permissions
+- Create virtual environment with system site-packages
+- Install Python dependencies
+- Verify everything is working
+
+**Option B: Manual Setup**
+
+If you prefer to set up manually:
+
 1. **Update system packages and install MediaPipe dependencies:**
    ```bash
    sudo apt update && sudo apt upgrade -y
    sudo apt install -y libusb-1.0-0 libgcc1 libjpeg62-turbo libjbig0 libstdc++6 libtiff5 libc6 liblzma5 libpng16-16 zlib1g libudev1 libdc1394-22 libatomic1 libraw1394-11
    ```
 
-2. **Install uv (if not already installed):**
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   source ~/.bashrc
-   ```
-
-3. **Install Picamera2 (for Raspberry Pi Camera Modules):**
+2. **Install Picamera2 (for Raspberry Pi Camera Modules):**
    ```bash
    sudo apt install -y python3-picamera2 python3-opencv
    ```
    **Important:** Picamera2 should be installed via `apt`, not `pip`, to avoid ABI compatibility issues. This enables native support for Camera Module 3 / 3 Wide.
 
-4. **Grant camera permissions:**
+3. **Grant camera permissions:**
    ```bash
    sudo usermod -a -G video $USER
    ```
    You may need to log out and back in for this to take effect.
 
-5. **Sync project dependencies:**
+4. **Verify Picamera2 in system Python:**
    ```bash
-   uv sync
+   python3 -c "from picamera2 import Picamera2; print('system Picamera2 OK')"
    ```
-   Creates virtual environment and installs dependencies. On Raspberry Pi, uses MediaPipe 0.10.18 (last version with ARM64 wheels).
+   This should succeed. If it fails, check that `python3-picamera2` is installed correctly.
 
-### Step 5: Configure Environment Variables
+5. **Create virtual environment with system site-packages:**
+   ```bash
+   cd ~/HandyPi
+   # Remove any existing uv-managed venv
+   rm -rf .venv
+   # Create venv that can see system packages (required for Picamera2)
+   python3 -m venv --system-site-packages .venv
+   # Activate the virtual environment
+   source .venv/bin/activate
+   ```
+
+6. **Install project dependencies:**
+   ```bash
+   # Still in the activated venv, install dependencies
+   pip install -r requirements.txt
+   ```
+   **Note:** On Raspberry Pi, we use MediaPipe 0.10.18 (last version with ARM64 wheels). For other platforms, you can use `mediapipe>=0.10.21`.
+   
+   **Important:** Do not use `uv sync` or `uv run` in this project, as they will recreate the virtual environment without system site-packages, breaking Picamera2 access.
+
+### Step 8: Configure Environment Variables
 
 Create `.env` file with RabbitMQ configuration:
 
@@ -125,21 +162,31 @@ RABBITMQ_EXCHANGE_TYPE=topic
 RABBITMQ_ROUTING_KEY_POSITION=thumb.position
 ```
 
-### Step 6: Run the Application
+### Step 9: Run the Application
+
+**Important:** Always activate the virtual environment first:
+```bash
+cd ~/HandyPi
+source .venv/bin/activate
+```
 
 **For Raspberry Pi Camera Module 3 / 3 Wide:**
 ```bash
-uv run main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
+python main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
 ```
 
 **For USB webcam or V4L2 camera:**
 ```bash
-uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
+python main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ```
 
 Press `q` or `ESC` to quit.
 
+**Note:** Use `python main.py` (not `uv run main.py`) to ensure the virtual environment with system site-packages is used.
+
 ## Installation (Local Development)
+
+For development on non-Raspberry Pi systems (laptops, desktops):
 
 ```bash
 git clone https://github.com/lasaths/HandyPi.git
@@ -147,7 +194,9 @@ cd HandyPi
 uv sync
 ```
 
-Create `.env` file with your RabbitMQ credentials (see Step 4 above for format).
+Create `.env` file with your RabbitMQ credentials (see Step 8 above for format).
+
+**Note:** On Raspberry Pi, follow the setup steps above to create a venv with `--system-site-packages` for Picamera2 support. On other platforms, `uv sync` works fine.
 
 ## Usage
 
@@ -155,12 +204,13 @@ Create `.env` file with your RabbitMQ credentials (see Step 4 above for format).
 
 Run the hand tracking application:
 
-**For Raspberry Pi Camera Module 3 / 3 Wide:**
+**On Raspberry Pi (with Picamera2 support):**
 ```bash
-uv run main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
+source .venv/bin/activate  # Activate venv with system site-packages
+python main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
 ```
 
-**For USB webcam or V4L2 camera:**
+**On other platforms (USB webcam):**
 ```bash
 uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ```
@@ -178,6 +228,14 @@ uv run main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
 ### Consumer (Test Messages)
 
 Test RabbitMQ message reception:
+
+**On Raspberry Pi:**
+```bash
+source .venv/bin/activate
+python consumer.py
+```
+
+**On other platforms:**
 ```bash
 uv run consumer.py
 ```
@@ -205,7 +263,9 @@ This will listen for both pinch trigger messages and thumb position messages, di
 - `tracker.py` - Hand tracking using MediaPipe
 - `rabbitmq.py` - RabbitMQ connection and messaging
 - `consumer.py` - Test consumer for RabbitMQ messages
-- `pyproject.toml` - Project dependencies
+- `pyproject.toml` - Project dependencies (for uv)
+- `requirements.txt` - Python dependencies (for pip install on Raspberry Pi)
+- `setup_pi.sh` - Automated setup script for Raspberry Pi
 
 ## Dependencies
 
@@ -230,10 +290,22 @@ PINCH_DISTANCE_THRESHOLD = 40  # pixels
 
 ### Camera Not Opening
 - Ensure your camera is connected and not being used by another application
-- For Raspberry Pi Camera Modules: Use `--picamera` flag and ensure Picamera2 is installed (`sudo apt install -y python3-picamera2`)
+- For Raspberry Pi Camera Modules: 
+  - Use `--picamera` flag and ensure Picamera2 is installed (`sudo apt install -y python3-picamera2`)
+  - Verify Picamera2 is accessible: `python3 -c "from picamera2 import Picamera2; print('OK')"`
+  - Ensure you're using a venv with `--system-site-packages` (see Step 6 in setup)
+  - Run with `python main.py --picamera` (not `uv run main.py`)
+  - Enable camera in `raspi-config`: `sudo raspi-config` → Interface Options → Camera → Enable
 - For USB webcams: Try different camera indices: `--camera 1`, `--camera 2`, etc.
 - On Linux, ensure your user is in the `video` group: `sudo usermod -a -G video $USER` (log out and back in)
-- Enable camera in `raspi-config` if using Pi Camera Module: `sudo raspi-config` → Interface Options → Camera → Enable
+
+### Picamera2 ModuleNotFoundError
+If you get `ModuleNotFoundError: No module named 'picamera2'`:
+- Ensure Picamera2 is installed: `sudo apt install -y python3-picamera2`
+- Verify system Python can see it: `python3 -c "from picamera2 import Picamera2; print('OK')"`
+- **Do not use `uv sync` or `uv run`** - they recreate the venv without system site-packages
+- Use `python3 -m venv --system-site-packages .venv` to create the venv
+- Activate with `source .venv/bin/activate` and run with `python main.py`
 
 ### RabbitMQ Connection Failed
 - Verify RabbitMQ server is running: `rabbitmqctl status`
