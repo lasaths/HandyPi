@@ -107,11 +107,18 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    uv sync
    ```
 
-   This will create a virtual environment and install all Python dependencies. May take several minutes on first run.
+   This will create a virtual environment and install all Python dependencies except MediaPipe (which must be installed manually on Raspberry Pi - see next step).
 
-   **Note:** If `uv sync` fails with a MediaPipe installation error on Raspberry Pi, see the troubleshooting section below.
+5. **Install MediaPipe manually (Raspberry Pi only):**
+   ```bash
+   source .venv/bin/activate
+   python3 -m pip install --upgrade pip
+   python3 -m pip install mediapipe
+   ```
 
-### Step 5: Configure Environment Variables
+   Regular `pip` automatically uses [piwheels.org](https://www.piwheels.org) for ARM-compatible builds.
+
+### Step 6: Configure Environment Variables
 
 1. **Create `.env` file:**
    ```bash
@@ -133,7 +140,7 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
 3. **Save and exit:**
    - Press `Ctrl+X`, then `Y`, then `Enter`
 
-### Step 6: Run the Application
+### Step 7: Run the Application
 
 ```bash
 uv run main.py
@@ -299,22 +306,15 @@ Adjust this value to change the sensitivity of pinch detection.
 
 ### MediaPipe Installation Issues on Raspberry Pi
 
-If `uv sync` fails with a MediaPipe installation error, install it manually:
+MediaPipe is excluded from `uv sync` on ARM64 because PyPI doesn't provide ARM64 wheels. Install it manually:
 
 ```bash
-# Install all other dependencies first
-uv sync --no-deps
 source .venv/bin/activate
-
-# Install remaining dependencies manually
-uv pip install "numpy>=1.26.4,<2" "opencv-python>=4.8.0" "pika>=1.3.2" "python-dotenv>=1.0.0" "rich>=14.2.0"
-
-# Install MediaPipe using regular pip (automatically uses piwheels)
 python3 -m pip install --upgrade pip
 python3 -m pip install mediapipe
 ```
 
-**Alternative: Build from source**
+**If that fails, build from source:**
 
 ```bash
 sudo apt install -y python3-dev python3-venv protobuf-compiler cmake
