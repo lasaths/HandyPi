@@ -90,6 +90,9 @@ Run these commands on the Pi (from the `HandyPi` folder):
 ```bash
 cd ~/HandyPi
 
+# If you already have a .venv from uv, remove it first:
+rm -rf .venv
+
 # 1. Create venv that can see system packages (required for Picamera2)
 uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
@@ -102,9 +105,10 @@ sudo apt install -y python3-picamera2
 python -c "from picamera2 import Picamera2; print(Picamera2)"
 
 # 4. Python deps for YOLO + RabbitMQ logging
-uv pip install ultralytics rich pika
+uv pip install ultralytics rich pika ultralytics[export]
 
 # 5. Run YOLO pose with PiCamera
+python -c "from ultralytics import YOLO; YOLO('yolo11n-pose.pt').export(format='ncnn')"
 python yolo.py --picamera --model yolo11n-pose.pt
 ```
 
