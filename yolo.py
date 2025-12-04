@@ -181,6 +181,11 @@ def run_live(
 
     console.print("[dim]Press 'q' or ESC to quit.[/dim]")
 
+    # Create a resizable display window for the annotated frames
+    window_title = "HandyPi – YOLO11 pose full-body gesture"
+    cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_title, width, height)
+
     try:
         while True:
             # ---------------------------------------------------------------
@@ -304,7 +309,7 @@ def run_live(
                 cv2.LINE_AA,
             )
 
-            cv2.imshow("HandyPi – YOLO11 pose full-body gesture", annotated_frame)
+            cv2.imshow(window_title, annotated_frame)
             key = cv2.waitKey(1) & 0xFF
             if key in (ord("q"), 27):  # 'q' or ESC
                 break
