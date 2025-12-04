@@ -67,6 +67,9 @@ A real-time hand tracking application that detects pinch gestures using MediaPip
    - You should see a prompt like: `radr@raspberrypi:~ $`
    - Run: `hostname` to confirm you're on the Pi
 
+Alternatively, use VNC (for remote desktop access):
+- **VNC Viewer download:** [RealVNC Viewer](https://www.realvnc.com/en/connect/download/viewer/?lai_vid=b5LW21nv3SQN&lai_sr=0-4&lai_sl=l)
+
 ### Step 3: Clone the Repository
 
 1. **Open Terminal in VS Code:**
@@ -90,6 +93,10 @@ Run these commands on the Pi (from the `HandyPi` folder):
 ```bash
 cd ~/HandyPi
 
+# Update packages
+sudo apt update
+sudo apt upgrade -y
+
 # If you already have a .venv from uv, remove it first:
 rm -rf .venv
 
@@ -100,8 +107,10 @@ source .venv/bin/activate
 # 2. System packages
 sudo apt update
 sudo apt install -y python3-picamera2
+sudo apt install -y python3-opencv
 
 # 3. Verify Picamera2
+rpicam-hello
 python -c "from picamera2 import Picamera2; print(Picamera2)"
 
 # 4. Python deps for YOLO + RabbitMQ logging
@@ -140,12 +149,12 @@ source .venv/bin/activate
 
 **For Raspberry Pi Camera Module 3 / 3 Wide:**
 ```bash
-python main.py --picamera [--width 1280] [--height 720] [--max-hands 1]
+python yolo.py --picamera
 ```
 
 **For USB webcam or V4L2 camera:**
 ```bash
-python main.py [--camera 0] [--width 640] [--height 480] [--max-hands 1]
+python yolo.py
 ```
 
 Press `q` or `ESC` to quit.
@@ -291,45 +300,9 @@ If you get `ModuleNotFoundError: No module named 'picamera2'`:
 
 MediaPipe 0.10.18 is the last version with ARM64 wheels ([GitHub issue #5965](https://github.com/google-ai-edge/mediapipe/issues/5965)) and requires Python <= 3.11.
 
-**If you have Python 3.12+ (e.g., Debian Trixie):**
-
-1. **Option 1: Install Python 3.11** (recommended):
-   ```bash
-   # Add deadsnakes PPA (if on Ubuntu/Debian)
-   sudo apt install -y software-properties-common
-   sudo add-apt-repository ppa:deadsnakes/ppa
-   sudo apt update
-   sudo apt install -y python3.11 python3.11-venv python3.11-dev
-   
-   # Then recreate venv with Python 3.11
-   rm -rf .venv
-   python3.11 -m venv --system-site-packages .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Option 2: Build MediaPipe from source** (for Python 3.12+):
-   ```bash
-   source .venv/bin/activate
-   sudo apt install -y python3-dev python3-venv protobuf-compiler cmake build-essential
-   git clone https://github.com/google/mediapipe.git
-   cd mediapipe
-   python3 -m pip install --upgrade pip
-   python3 -m pip install -r requirements.txt
-   python3 setup.py install --link-opencv
-   cd ..
-   rm -rf mediapipe
-   ```
-
-**If pip install fails on Raspberry Pi:**
-```bash
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install mediapipe==0.10.18
-```
 
 ## Quick Reference
 
 **SSH:** `radr@raspberrypi.local` (password: `radr123`)  
-**Network:** `radr_open_X` / `radr_password`  
-**RabbitMQ:** `radr` / `radr123`
+**Network:** `radr_open_X` / `radr_password`  where X is the kit number
+**VNC** `sudo raspi-config`
